@@ -10,7 +10,10 @@ from PyQt4 import QtGui, QtCore
 config = ConfigParser.RawConfigParser()
 config.read('config.cfg')
 
-logging.basicConfig(filename='program.log', level=logging.DEBUG)
+logging.basicConfig(filename='program.log', 
+    level=logging.DEBUG, 
+    format='%(created)i:%(message)s',
+    )
 
 class WindowThread(QtCore.QThread):
     def __init__(self, w):
@@ -25,7 +28,7 @@ class NumberThread(WindowThread):
             while prev == next_:
                 next_ = random.randint(0, 9)
             prev = next_
-            logging.info('displaying: {}, at time: {}'.format(next_, time.time()))
+            logging.info('displaying: {}'.format(next_))
             self.w.lcd.display(next_)
             time.sleep(1)
             if not self.w.isVisible():
@@ -33,8 +36,8 @@ class NumberThread(WindowThread):
 
 class ColorThread(WindowThread):
     def __init__(self, w):
-        self.opacity_step = float(config.get('ColorRectangle', 'opacity_step'))
-        self.opacity_time = float(config.get('ColorRectangle', 'opacity_time'))
+        self.opacity_step = config.getfloat('ColorRectangle', 'opacity_step')
+        self.opacity_time = config.getfloat('ColorRectangle', 'opacity_time')
         super(ColorThread, self).__init__(w)
 
     def run(self):
@@ -85,7 +88,7 @@ class NumberWindow(QtGui.QWidget):
 
     def onClicked(self):
         val = self.lcd.intValue()
-        logging.info('Clicked {} @ {}'.format(val, time.time()))
+        logging.info('Clicked {}'.format(val))
         if val == 7:
             logging.info('closing window')
             self.close()
@@ -93,8 +96,8 @@ class NumberWindow(QtGui.QWidget):
 class ColorWindow(QtGui.QWidget):
     def __init__(self):
         super(ColorWindow, self).__init__()
-        self.width = int(config.get('ColorRectangle', 'width'))
-        self.height = int(config.get('ColorRectangle', 'height'))
+        self.width = config.getint('ColorRectangle', 'width')
+        self.height = config.getint('ColorRectangle', 'height')
         self.initUI()
 
     def initUI(self):
@@ -112,6 +115,7 @@ class ColorWindow(QtGui.QWidget):
         self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint | QtCore.Qt.FramelessWindowHint)
 
     def mousePressEvent(self, event):
+        logging.info('user clicked on rectangle. opacity level: {}'.format(self.windowOpacity()))
         self.close()
 
 def main():
@@ -122,21 +126,26 @@ def main():
     trayIcon = SystemTrayIcon(QtGui.QIcon('icon.png'), trayWidget)
 
     trayIcon.show()
+    logging.info('starting application')
 
-    colorWindow = ColorWindow()
-    t = show_color_window(colorWindow)
-
-    # numberWindow = NumberWindow()
-    # t = show_number_window(numberWindow)
+    task = config.get('Main', 'task')
+    if task == 'color-rectangle':
+        colorWindow = ColorWindow()
+        t = show_color_window(colorWindow)
+    elif task == 'numbers':
+        numberWindow = NumberWindow()
+        t = show_number_window(numberWindow)
     sys.exit(app.exec_())
 
 def show_color_window(colorWindow):
+    logging.info('showing ColorWindow')
     colorWindow.show()
     thread = ColorThread(colorWindow)
     thread.start()
     return thread
 
 def show_number_window(numberWindow):
+    logging.info('showing NumberWindow')
     numberWindow.show()
     thread = NumberThread(numberWindow)
     # thread.finished.connect(app.exit)

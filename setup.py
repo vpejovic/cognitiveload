@@ -4,7 +4,7 @@ from cx_Freeze import setup, Executable
 # fine tuning.
 buildOptions = dict(packages=[],
                     excludes=[],
-                    include_files=['icon.png'],
+                    include_files=['icon.png', 'config.cfg'],
                     )
 
 import sys
@@ -15,7 +15,7 @@ executables = [
 ]
 
 setup(name='cog_app',
-      version = '1.0',
+      version = '0.1',
       description = '',
       options = dict(build_exe = buildOptions),
       executables = executables)

@@ -1,0 +1,28 @@
+INFO:root:showing ColorSquare
+INFO:root:user clicked on square. opacity level: 0.556862745098
+INFO:root:exiting application
+1489932770:starting application
+1489932770:showing ColorSquare
+1489932777:user clicked on square. opacity level: 0.709803921569
+1489932781:exiting application
+1489933084:starting application
+1489933101:starting application
+1489933101:showing ColorWindow
+1489933104:user clicked on rectangle. opacity level: 0.227450980392
+1489933109:exiting application
+1489933127:starting application
+1489933127:showing NumberWindow
+1489933127:displaying: 2
+1489933128:displaying: 9
+1489933129:displaying: 4
+1489933130:Clicked 4
+1489933130:displaying: 0
+1489933131:displaying: 2
+1489933132:displaying: 0
+1489933133:displaying: 9
+1489933134:Clicked 9
+1489933134:displaying: 1
+1489933135:displaying: 7
+1489933136:Clicked 7
+1489933136:closing window
+1489933142:exiting application

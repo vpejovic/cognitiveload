@@ -53,7 +53,7 @@ class TimeKeeperThread(QtCore.QThread):
             time.sleep(10)
 
     def trigger_task(self):
-        self.next_task_time + self.time_between_tasks
+        self.next_task_time = time.time() + self.time_between_tasks
         self.emit(QtCore.SIGNAL('triggerTask'))
 
 

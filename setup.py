@@ -15,7 +15,7 @@ executables = [
 ]
 
 setup(name='cog_app',
-      version = '0.1',
+      version = '0.1.1',
       description = '',
       options = dict(build_exe = buildOptions),
       executables = executables)

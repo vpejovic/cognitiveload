@@ -1,4 +1,5 @@
 import sys
+import os
 import time
 import random
 import logging
@@ -12,7 +13,11 @@ import pythoncom
 config = ConfigParser.RawConfigParser()
 config.read('config.cfg')
 
-logging.basicConfig(filename='program.log', 
+LOGGING_DIR = 'C:\ProgramData\cog_app'
+if not os.path.exists(LOGGING_DIR):
+    os.makedirs(LOGGING_DIR)
+
+logging.basicConfig(filename=LOGGING_DIR+'\program.log', 
     level=logging.DEBUG, 
     format='%(created)i:%(message)s',
     )

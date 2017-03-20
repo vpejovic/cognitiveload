@@ -6,6 +6,8 @@ import ConfigParser
 
 import requests
 from PyQt4 import QtGui, QtCore
+import pyHook
+import pythoncom
 
 config = ConfigParser.RawConfigParser()
 config.read('config.cfg')
@@ -14,6 +16,41 @@ logging.basicConfig(filename='program.log',
     level=logging.DEBUG, 
     format='%(created)i:%(message)s',
     )
+
+user_active_global = (False, time.time())
+
+class ActivityDetectionThread(QtCore.QThread):
+    def run(self):
+        hm = pyHook.HookManager()
+        hm.KeyDown = self.set_active
+        hm.HookKeyboard()
+        pythoncom.PumpMessages()
+
+    def set_active(self, event):
+        global user_active_global
+        print 'active'
+        user_active_global = (True, time.time())
+
+class TimeKeeperThread(QtCore.QThread):
+    def __init__(self):
+        self.time_between_tasks = config.getint('Main', 'time_between_tasks')
+        super(TimeKeeperThread, self).__init__()
+
+    def run(self):
+        global user_active_global
+        self.next_task_time = time.time() + self.time_between_tasks
+        while True:
+            if time.time() - user_active_global[1] > 300:
+                user_active_global = (False, user_active_global[1])
+            if time.time() > self.next_task_time:
+                if user_active_global[0]:
+                    self.trigger_task()
+            time.sleep(10)
+
+    def trigger_task(self):
+        self.next_task_time + self.time_between_tasks
+        self.emit(QtCore.SIGNAL('triggerTask'))
+
 
 class WindowThread(QtCore.QThread):
     def __init__(self, w):
@@ -118,6 +155,14 @@ class ColorWindow(QtGui.QWidget):
         logging.info('user clicked on rectangle. opacity level: {}'.format(self.windowOpacity()))
         self.close()
 
+    def startTask(self):
+        if self.isVisible():
+            return
+        logging.info('showing ColorWindow')
+        self.show()
+        self.thread = ColorThread(self)
+        self.thread.start()
+
 def main():
     app = QtGui.QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
@@ -128,21 +173,22 @@ def main():
     trayIcon.show()
     logging.info('starting application')
 
+    t = ActivityDetectionThread()
+    t.start()
+
+    t2 = TimeKeeperThread()
+    t2.start()
+
     task = config.get('Main', 'task')
     if task == 'color-rectangle':
         colorWindow = ColorWindow()
-        t = show_color_window(colorWindow)
+        colorWindow.connect(t2, QtCore.SIGNAL('triggerTask'), colorWindow.startTask)
     elif task == 'numbers':
-        numberWindow = NumberWindow()
-        t = show_number_window(numberWindow)
-    sys.exit(app.exec_())
+        colorWindow = ColorWindow()
+        colorWindow.connect(t2, QtCore.SIGNAL('triggerTask'), colorWindow.startTask)
 
-def show_color_window(colorWindow):
-    logging.info('showing ColorWindow')
-    colorWindow.show()
-    thread = ColorThread(colorWindow)
-    thread.start()
-    return thread
+
+    sys.exit(app.exec_())
 
 def show_number_window(numberWindow):
     logging.info('showing NumberWindow')

@@ -4,7 +4,7 @@ from cx_Freeze import setup, Executable
 # fine tuning.
 buildOptions = dict(packages=[],
                     excludes=[],
-                    include_files=['icon.png', 'config.cfg'],
+                    include_files=['icon.png', 'config.cfg', 'cpyHook.py'],
                     )
 
 import sys

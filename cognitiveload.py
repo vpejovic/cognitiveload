@@ -42,15 +42,22 @@ class TimeKeeperThread(QtCore.QThread):
         super(TimeKeeperThread, self).__init__()
 
     def run(self):
-        global user_active_global
         self.next_task_time = time.time() + self.time_between_tasks
         while True:
-            if time.time() - user_active_global[1] > 300:
-                user_active_global = (False, user_active_global[1])
+            user_active = self.check_user_active()
             if time.time() > self.next_task_time:
-                if user_active_global[0]:
+                if user_active:
                     self.trigger_task()
             time.sleep(10)
+
+    def check_user_active(self):
+        active_timeout = config.getint('Main', 'active_timeout')
+        global user_active_global
+        if time.time() - user_active_global[1] > active_timeout:
+            user_active_global = (False, user_active_global[1])
+            return False
+        else:
+            return user_active_global[0]
 
     def trigger_task(self):
         self.next_task_time = time.time() + self.time_between_tasks

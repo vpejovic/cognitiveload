@@ -14,33 +14,28 @@ import tailer
 config = ConfigParser.RawConfigParser()
 config.read('lab_config.cfg')
 
-LOGGING_DIR = 'C:\ProgramData\cog_app'
-if not os.path.exists(LOGGING_DIR):
-    os.makedirs(LOGGING_DIR)
-
-logging.basicConfig(filename=LOGGING_DIR+'\lab_program.log', 
-    level=logging.DEBUG, 
-    format='%(created)i:%(message)s',
-    )
-
-
 class LogTailerThread(QtCore.QThread):
     TRIGGERS = ['Sync Slide', 'Hidden Pattern Question Slide', "Finding A's Question Slide", 'Gestalt Completion Question Slide',
     'Pursuit Test Question Slide', 'Number Comparison Question Slide', "Scattered X's Question Slide"]
     STOPPERS = ['Break Slide', 'TimeIsUp Slide', 'Rating Slide']
+    QUITTERS = ['End Slide']
     def run(self):
-        log_file = open(config.get('Main', 'log_file'), 'r')
+        log_file = open(INPUT_FILE_PATH, 'r')
 
         for line in tailer.follow(log_file):
             self.parse_line(line)
 
     def parse_line(self, line):
+        print(line)
         parts = line.split(', ')
         if len(parts) > 1:
-            if parts[1].strip() in self.TRIGGERS:
+            slide_name = parts[1].strip()
+            if slide_name in self.TRIGGERS:
                 self.trigger_task()
-            elif parts[1].strip() in self.STOPPERS:
+            elif slide_name in self.STOPPERS:
                 self.stop_task()
+            elif slide_name in self.QUITTERS:
+                QtCore.QCoreApplication.exit()
 
     def trigger_task(self):
         self.emit(QtCore.SIGNAL('triggerTask'))
@@ -67,118 +62,12 @@ class SystemTrayIcon(QtGui.QSystemTrayIcon):
         logging.info('exiting application')
         QtCore.QCoreApplication.exit()
 
-class SumNumbersWindow(QtGui.QWidget):
-    def __init__(self):
-        super(SumNumbersWindow, self).__init__()
-        self.initUI()
-        self.sum_ = 0
-        self.previous_numbers = []
-        self.reset_previous_numbers()
-        self.status = 'RUNNING'
-
-    def initUI(self):
-        self.lcd = QtGui.QLCDNumber(self)
-        self.lcd.setDigitCount(1)
-        self.lcd.display(0)
-        self.btn = QtGui.QPushButton('Potrdi', self)
-        self.btn.clicked.connect(self.onClicked)
-        vbox = QtGui.QVBoxLayout()
-        vbox.addWidget(self.lcd)
-        vbox.addWidget(self.btn)
-        self.setLayout(vbox)
-        x = config.getint('SumNumbers', 'x')
-        y = config.getint('SumNumbers', 'y')
-        width = config.getint('SumNumbers', 'width')
-        height = config.getint('SumNumbers', 'height')
-        self.setGeometry(x, y, width, height)
-        self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint | QtCore.Qt.FramelessWindowHint)
-        p = self.palette()
-        p.setColor(self.backgroundRole(), QtCore.Qt.white)
-        self.setPalette(p)
-        # self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
-
-    def reset_previous_numbers(self):
-        prev_num = config.getint('SumNumbers', 'previous_numbers')
-        self.previous_numbers = [0] * prev_num
-
-    def onClicked(self):
-        sum_limit = config.getint('SumNumbers', 'sum_limit')
-        if self.status != 'RUNNING':
-            return
-        if self.sum_ >= sum_limit:
-            self.success()
-        else:
-            self.failure()
-
-    def success(self):
-        logging.info('user guessed correctly sum was {}'.format(self.sum_))
-        self.sum_ = 0
-        self.status = 'PAUSE'
-        self.reset_previous_numbers()
-        p = self.palette()
-        p.setColor(self.backgroundRole(), QtCore.Qt.green)
-        self.setPalette(p)
-
-    def failure(self):
-        logging.info('user guessed incorrectly sum was {}'.format(self.sum_))
-        self.status = 'PAUSE'
-        self.sum_ = 0
-        self.reset_previous_numbers()
-        p = self.palette()
-        p.setColor(self.backgroundRole(), QtCore.Qt.red)
-        self.setPalette(p)
-
-    def startTask(self):
-        if self.isVisible():
-            return
-        self.show()
-        self.thread = SumNumbersThread(self)
-        self.thread.start()
-
-    def stopTask(self):
-        self.close()
-
-class SumNumbersThread(WindowThread):
-    def run(self):
-        display_time = config.getfloat('SumNumbers', 'display_time')
-        between_time = config.getfloat('SumNumbers', 'between_time')
-        prev_num = config.getint('SumNumbers', 'previous_numbers')
-        prev = 0
-        next_ = 0
-        counter = 0
-        while True:
-            if self.w.status == 'PAUSE':
-                time.sleep(between_time)
-                p = self.w.palette()
-                p.setColor(self.w.backgroundRole(), QtCore.Qt.white)
-                self.w.setPalette(p)
-                self.w.status = 'RUNNING'
-
-            elif self.w.status == 'RUNNING':
-                self.w.lcd.setVisible(False)
-                self.w.btn.setVisible(False)
-                time.sleep(between_time)
-                while prev == next_:
-                    next_ = random.randint(1, 9)
-                prev = next_
-                self.w.previous_numbers[counter % prev_num] = next_
-                counter += 1
-                self.w.sum_ = sum(self.w.previous_numbers)
-                logging.info('displaying: {}, sum is: {}'.format(next_, self.w.sum_))
-                print 'displaying: {}, sum is: {}'.format(next_, self.w.sum_)
-                self.w.lcd.display(next_)
-                self.w.lcd.setVisible(True)
-                self.w.btn.setVisible(True)
-                time.sleep(display_time)
-            if not self.w.isVisible():
-                return
 
 class ColorThread(WindowThread):
-    SLEEP_TIME = 0.1
-
     def __init__(self, w, positions):
         self.positions = positions
         self.opacity_step = config.getfloat('ColorRectangle', 'opacity_step')
+        self.SLEEP_TIME = config.getfloat('ColorRectangle', 'opacity_time')
         super(ColorThread, self).__init__(w)
 
     def run(self):
@@ -271,11 +160,7 @@ def main():
     t2 = LogTailerThread()
     t2.start()
 
-    task = config.get('Main', 'task')
-    if task == 'color-rectangle':
-        taskWindow = ColorWindow()
-    elif task == 'sum-numbers':
-        taskWindow = SumNumbersWindow()
+    taskWindow = ColorWindow()
 
     taskWindow.connect(t2, QtCore.SIGNAL('triggerTask'), taskWindow.startTask)
     taskWindow.connect(t2, QtCore.SIGNAL('stopTask'), taskWindow.stopTask)
@@ -283,4 +168,16 @@ def main():
     sys.exit(app.exec_())    
 
 if __name__ == '__main__':
+    import os.path
+    # INPUT_FILE_PATH = sys.argv[1]
+    # OUTPUT_FILE_PATH = sys.argv[2]
+    LOG_DIR = config.get('Main', 'log_dir')
+    INPUT_FILE_NAME = config.get('Main', 'input_file')
+    OUTPUT_FILE_NAME = config.get('Main', 'output_file')
+    INPUT_FILE_PATH = os.path.join(LOG_DIR, INPUT_FILE_NAME)
+    OUTPUT_FILE_PATH = os.path.join(LOG_DIR, OUTPUT_FILE_NAME)
+    logging.basicConfig(filename=OUTPUT_FILE_PATH, 
+        level=logging.DEBUG, 
+        format='%(created)i:%(message)s',
+        )
     main()

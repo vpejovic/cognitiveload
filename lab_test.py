@@ -21,12 +21,13 @@ class LogTailerThread(QtCore.QThread):
     QUITTERS = ['End Slide']
     def run(self):
         log_file = open(INPUT_FILE_PATH, 'r')
+        logging.debug('opening {} file for tailing'.format(log_file))
 
         for line in tailer.follow(log_file):
             self.parse_line(line)
 
     def parse_line(self, line):
-        print(line)
+        logging.debug('parsing: {}'.format(line))
         parts = line.split(', ')
         if len(parts) > 1:
             slide_name = parts[1].strip()
@@ -130,8 +131,6 @@ class ColorWindow(QtGui.QWidget):
         self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint | QtCore.Qt.FramelessWindowHint)
 
     def mousePressEvent(self, event):
-        if self.windowOpacity() < 0.05:
-            return
         logging.info('user clicked on rectangle. opacity level: {}'.format(self.windowOpacity()))
         self.setWindowOpacity(0)
 
@@ -156,10 +155,10 @@ def main():
 
     trayIcon.show()
     logging.info('starting application')
-
+    logging.debug('starting tailer thread')
     t2 = LogTailerThread()
     t2.start()
-
+    logging.debug('starting color window')
     taskWindow = ColorWindow()
 
     taskWindow.connect(t2, QtCore.SIGNAL('triggerTask'), taskWindow.startTask)
@@ -169,13 +168,13 @@ def main():
 
 if __name__ == '__main__':
     import os.path
-    # INPUT_FILE_PATH = sys.argv[1]
-    # OUTPUT_FILE_PATH = sys.argv[2]
-    LOG_DIR = config.get('Main', 'log_dir')
-    INPUT_FILE_NAME = config.get('Main', 'input_file')
-    OUTPUT_FILE_NAME = config.get('Main', 'output_file')
-    INPUT_FILE_PATH = os.path.join(LOG_DIR, INPUT_FILE_NAME)
-    OUTPUT_FILE_PATH = os.path.join(LOG_DIR, OUTPUT_FILE_NAME)
+    INPUT_FILE_PATH = sys.argv[1]
+    OUTPUT_FILE_PATH = sys.argv[2]
+    # LOG_DIR = config.get('Main', 'log_dir')
+    # INPUT_FILE_NAME = config.get('Main', 'input_file')
+    # OUTPUT_FILE_NAME = config.get('Main', 'output_file')
+    # INPUT_FILE_PATH = os.path.join(LOG_DIR, INPUT_FILE_NAME)
+    # OUTPUT_FILE_PATH = os.path.join(LOG_DIR, OUTPUT_FILE_NAME)
     logging.basicConfig(filename=OUTPUT_FILE_PATH, 
         level=logging.DEBUG, 
         format='%(created)i:%(message)s',
